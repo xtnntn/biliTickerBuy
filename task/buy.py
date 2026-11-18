@@ -658,6 +658,11 @@ def buy_stream(config: BuyConfig):
             order_token = _extract_prepare_token(request_result)
             if not order_token:
                 yield emit_reprepare("订单准备未返回有效 token")
+                # prepare 未拿到 token 时（如未开售持续返回 80110765），
+                # 这里直接 continue 会绕过内层 create 的 sleep，退化成毫秒级空转，
+                # 短时间内打出上千次请求并触发账号/IP 级 412 风控。
+                # 与 create 重试路径一致，按用户配置的间隔退避后再重试。
+                time.sleep(request_interval / 1000)
                 continue
             # else:
             #     # normal
